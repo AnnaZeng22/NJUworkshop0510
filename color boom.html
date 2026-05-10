@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>COLOR BOOM：颜色特工 - 认知诊断版</title>
+    <style>
+        :root {
+            --bg-color: #6c5ce7;
+            --border-color: #2d3436;
+            --c-red: #ff4757;
+            --c-blue: #3498db;
+            --c-green: #2ed573;
+            --c-yellow: #f1c40f;
+            --c-white: #ffffff;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            font-family: 'Arial Black', 'Microsoft YaHei', sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+
+        #game-box {
+            width: 100%; max-width: 420px; height: 100%; max-height: 800px;
+            background: var(--c-white); border: 8px solid var(--border-color);
+            border-radius: 40px; position: relative;
+            display: flex; flex-direction: column;
+            box-shadow: 20px 20px 0 rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        /* 顶部 HUD */
+        #top-hud {
+            padding: 25px 20px 10px;
+            background: #f9f9f9;
+            border-bottom: 6px solid var(--border-color);
+        }
+
+        .bar-container { display: flex; align-items: center; margin-bottom: 8px; }
+        .bar-label { font-size: 1rem; margin-right: 10px; width: 25px; }
+        .bar-outline {
+            flex: 1; height: 20px; background: #eee;
+            border: 3px solid var(--border-color);
+            border-radius: 10px; overflow: hidden;
+        }
+        .bar-fill { width: 100%; height: 100%; transition: width 0.2s; }
+        #hp-fill { background: var(--c-red); }
+        #time-fill { background: var(--c-yellow); transition: width 0.1s linear; }
+
+        #score-display {
+            display: flex; justify-content: space-between;
+            font-size: 1.2rem; font-weight: 900; color: var(--border-color);
+        }
+
+        /* 展示区 */
+        #action-zone {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            position: relative; overflow: hidden;
+        }
+
+        #combo-boom {
+            position: absolute; font-size: 5rem; font-weight: 900;
+            color: var(--c-red); font-style: italic; opacity: 0.1;
+            transform: rotate(-15deg); z-index: 0;
+        }
+
+        #instruction {
+            background: var(--border-color); color: white;
+            padding: 8px 30px; border-radius: 50px;
+            font-size: 1rem; margin-bottom: 20px; z-index: 5;
+        }
+
+        #target-word {
+            font-size: 5rem; font-weight: 900; z-index: 5;
+            text-align: center; line-height: 1;
+        }
+
+        /* 按钮区 */
+        #btn-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr);
+            gap: 15px; padding: 25px;
+            background: #eee; border-top: 6px solid var(--border-color);
+        }
+
+        .boom-btn {
+            height: 80px; border-radius: 20px;
+            border: 4px solid var(--border-color);
+            box-shadow: 0 6px 0 var(--border-color);
+            cursor: pointer; transition: 0.1s;
+        }
+        .boom-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--border-color); }
+
+        /* 认知报告样式 */
+        #report-overlay {
+            position: absolute; inset: 0; background: white;
+            z-index: 100; display: none; flex-direction: column;
+            padding: 30px; overflow-y: auto;
+        }
+
+        .report-header { border-bottom: 4px solid var(--border-color); margin-bottom: 15px; }
+        .report-title { font-size: 1.8rem; margin: 0; color: var(--border-color); }
+        .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .report-item { background: #f1f2f6; padding: 10px; border-radius: 10px; border: 2px solid var(--border-color); }
+        .report-label { font-size: 0.8rem; color: #666; font-weight: bold; }
+        .report-val { font-size: 1.2rem; font-weight: 900; color: var(--c-blue); }
+
+        .conclusion-box {
+            background: #fdf9e7; border: 3px dashed var(--c-yellow);
+            padding: 15px; border-radius: 10px; font-size: 0.9rem;
+            line-height: 1.5; color: #444; margin-bottom: 20px;
+        }
+
+        .start-btn {
+            width: 100%; padding: 15px; background: var(--c-green);
+            border: 4px solid var(--border-color); border-radius: 20px;
+            font-size: 1.2rem; font-weight: 900; cursor: pointer;
+            box-shadow: 0 6px 0 var(--border-color);
+        }
+        .start-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--border-color); }
+
+        #menu-overlay {
+            position: absolute; inset: 0; background: white;
+            z-index: 101; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; padding: 40px; text-align: center;
+        }
+
+        @keyframes shake { 0%, 100% {transform:translate(0,0);} 20%{transform:translate(-5px,5px);} 40%{transform:translate(5px,-5px);} }
+        .vibrate { animation: shake 0.2s 2; }
+    </style>
+</head>
+<body>
+
+    <div id="game-box">
+        <div id="top-hud">
+            <div class="bar-container">
+                <span class="bar-label">❤️</span>
+                <div class="bar-outline"><div id="hp-fill" class="bar-fill"></div></div>
+            </div>
+            <div class="bar-container">
+                <span class="bar-label">⏱️</span>
+                <div class="bar-outline"><div id="time-fill" class="bar-fill"></div></div>
+            </div>
+            <div id="score-display">
+                <span>SCORE: <span id="val-score">0</span></span>
+                <span>TIME: <span id="val-time">60</span>s</span>
+            </div>
+        </div>
+
+        <div id="action-zone">
+            <div id="combo-boom">0</div>
+            <div id="instruction">READY?</div>
+            <div id="target-word">AGENT</div>
+        </div>
+
+        <div id="btn-grid"></div>
+
+        <!-- 认知报告页面 -->
+        <div id="report-overlay">
+            <div class="report-header">
+                <p style="margin:0; font-size: 0.8rem; color:#888;">COLOR BOOM 实验室：特工认知档案</p>
+                <h1 class="report-title">认知诊断报告</h1>
+            </div>
+            
+            <div class="report-grid">
+                <div class="report-item">
+                    <div class="report-label">处理速度 (Speed)</div>
+                    <div class="report-val" id="r-speed">--</div>
+                </div>
+                <div class="report-item">
+                    <div class="report-label">干扰抑制 (Control)</div>
+                    <div class="report-val" id="r-control">--</div>
+                </div>
+                <div class="report-item">
+                    <div class="report-label">认知灵活性 (Flex)</div>
+                    <div class="report-val" id="r-flex">--</div>
+                </div>
+                <div class="report-item">
+                    <div class="report-label">注意力持久度 (Focus)</div>
+                    <div class="report-val" id="r-focus">--</div>
+                </div>
+            </div>
+
+            <div class="conclusion-box">
+                <strong>专家评估：</strong><br>
+                <span id="r-conclusion">正在分析脑电波...</span>
+            </div>
+
+            <button class="start-btn" onclick="location.reload()">重新接受任务</button>
+        </div>
+
+        <!-- 初始菜单 -->
+        <div id="menu-overlay">
+            <h1 style="font-size: 3rem; margin:0;">COLOR BOOM</h1>
+            <p style="font-weight: bold; color: #888; margin-bottom: 30px;">颜色特工：Stroop认知测试</p>
+            <div style="width: 100%;">
+                <button class="start-btn" style="background: var(--c-green); margin-bottom:15px;" onclick="core.init('easy')">入门任务</button>
+                <button class="start-btn" style="background: var(--c-blue); color:white; margin-bottom:15px;" onclick="core.init('normal')">特工任务</button>
+                <button class="start-btn" style="background: var(--c-red); color:white;" onclick="core.init('hell')">王牌任务</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const COLOR_MAP = [
+            { n: "红色", v: "#ff4757" }, { n: "蓝色", v: "#3498db" },
+            { n: "绿色", v: "#2ed573" }, { n: "黄色", v: "#f1c40f" }
+        ];
+
+        const core = {
+            score: 0, combo: 0, maxCombo: 0, hp: 100, timeLeft: 60,
+            totalClicks: 0, rightClicks: 0,
+            active: false, diff: 'easy', mode: 0, answerIdx: 0,
+            clock: null,
+
+            init(diff) {
+                this.diff = diff;
+                this.score = 0; this.combo = 0; this.maxCombo = 0; this.hp = 100; this.timeLeft = 60;
+                this.totalClicks = 0; this.rightClicks = 0;
+                this.active = true;
+                document.getElementById('menu-overlay').style.display = 'none';
+                this.renderBtns();
+                this.next();
+                if(this.clock) clearInterval(this.clock);
+                this.clock = setInterval(() => this.run(), 100);
+            },
+
+            renderBtns() {
+                const grid = document.getElementById('btn-grid');
+                grid.innerHTML = '';
+                const count = (this.diff === 'easy') ? 2 : (this.diff === 'normal' ? 3 : 4);
+                for(let i=0; i<count; i++) {
+                    const b = document.createElement('div');
+                    b.className = 'boom-btn';
+                    b.style.backgroundColor = COLOR_MAP[i].v;
+                    b.onclick = () => this.hit(i);
+                    grid.appendChild(b);
+                }
+            },
+
+            next() {
+                const count = (this.diff === 'easy') ? 2 : (this.diff === 'normal' ? 3 : 4);
+                this.mode = Math.random() > 0.5 ? 0 : 1;
+                const txtI = Math.floor(Math.random() * count);
+                const colI = Math.floor(Math.random() * count);
+                this.answerIdx = (this.mode === 0) ? colI : txtI;
+                const inst = document.getElementById('instruction');
+                const word = document.getElementById('target-word');
+                inst.innerText = this.mode === 0 ? ">>> 识别颜色 <<<" : ">>> 识别文字 <<<";
+                inst.style.background = this.mode === 0 ? "var(--c-blue)" : "#e67e22";
+                word.innerText = COLOR_MAP[txtI].n;
+                word.style.color = COLOR_MAP[colI].v;
+            },
+
+            hit(idx) {
+                if(!this.active) return;
+                this.totalClicks++;
+                if(idx === this.answerIdx) {
+                    this.score += 10 + Math.floor(this.combo/5);
+                    this.combo++;
+                    this.rightClicks++;
+                    this.maxCombo = Math.max(this.combo, this.maxCombo);
+                    this.hp = Math.min(100, this.hp + 5);
+                } else {
+                    this.combo = 0;
+                    this.hp -= 15;
+                    this.vibrate();
+                }
+                this.draw();
+                this.next();
+            },
+
+            run() {
+                this.timeLeft -= 0.1;
+                this.hp -= 0.1;
+                this.draw();
+                if(this.timeLeft <= 0 || this.hp <= 0) this.over();
+            },
+
+            draw() {
+                document.getElementById('hp-fill').style.width = this.hp + "%";
+                document.getElementById('time-fill').style.width = (this.timeLeft / 60 * 100) + "%";
+                document.getElementById('val-score').innerText = this.score;
+                document.getElementById('val-time').innerText = Math.ceil(this.timeLeft);
+                document.getElementById('combo-boom').innerText = this.combo;
+            },
+
+            vibrate() {
+                document.getElementById('game-box').classList.add('vibrate');
+                setTimeout(() => document.getElementById('game-box').classList.remove('vibrate'), 200);
+            },
+
+            over() {
+                this.active = false;
+                clearInterval(this.clock);
+                this.showReport();
+            },
+
+            showReport() {
+                const overlay = document.getElementById('report-overlay');
+                overlay.style.display = 'flex';
+
+                // 1. 处理速度 (每秒正确点击数)
+                const timeUsed = 60 - this.timeLeft;
+                const speed = (this.rightClicks / timeUsed).toFixed(2);
+                document.getElementById('r-speed').innerText = speed + " ops";
+
+                // 2. 干扰抑制 (正确率)
+                const accuracy = (this.totalClicks > 0) ? (this.rightClicks / this.totalClicks * 100).toFixed(1) : 0;
+                document.getElementById('r-control').innerText = accuracy + "%";
+
+                // 3. 认知灵活性 (基于难度和Combo)
+                const diffBonus = this.diff === 'hell' ? 1.5 : (this.diff === 'normal' ? 1.2 : 1.0);
+                const flex = Math.min(100, (this.maxCombo * diffBonus * 3)).toFixed(0);
+                document.getElementById('r-flex').innerText = flex + " pts";
+
+                // 4. 注意力持久度
+                const focus = this.hp > 0 ? "优秀" : "疲劳";
+                document.getElementById('r-focus').innerText = focus;
+
+                // 5. 专家结论
+                let conclusion = "";
+                if (accuracy > 90 && speed > 1) {
+                    conclusion = "你的大脑拥有极强的‘执行抑制’能力，能够完美过滤无关干扰，是天生的王牌特工。在面临冲突决策时，你冷静得令人恐惧。";
+                } else if (accuracy > 75) {
+                    conclusion = "你的斯特鲁普干扰抵御力处于正常水平。虽然在规则快速切换时偶尔会有迟疑，但整体认知灵活性良好。";
+                } else {
+                    conclusion = "你的前额叶皮层目前处于高压状态。这种‘认知过载’现象很正常，建议休息片刻后再进行训练，以强化你的反应抑制回路。";
+                }
+                document.getElementById('r-conclusion').innerText = conclusion;
+            }
+        };
+    </script>
+</body>
+</html>
